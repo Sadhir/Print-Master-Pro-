@@ -2,37 +2,50 @@
 import React from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/Layout';
+import { AppProvider } from './context/AppContext';
 import { Dashboard } from './views/Dashboard';
 import { POS } from './views/POS';
 import { JobManagement } from './views/JobManagement';
 import { Inventory } from './views/Inventory';
-
-// Placeholder for missing views to keep it functional
-const Placeholder = ({ name }: { name: string }) => (
-  <div className="flex items-center justify-center h-full min-h-[400px]">
-    <div className="text-center">
-      <h2 className="text-2xl font-bold mb-2">{name} Module</h2>
-      <p className="text-slate-500">This feature is coming soon in the next update.</p>
-    </div>
-  </div>
-);
+import { Customers } from './views/Customers';
+import { Billing } from './views/Billing';
+import { Reports } from './views/Reports';
+import { Settings } from './views/Settings';
+import { Finance } from './views/Finance';
+import { Suppliers } from './views/Suppliers';
+import { StaffManagement } from './views/StaffManagement';
+import { Subscriptions } from './views/Subscriptions';
+import { MachineryManagement } from './views/MachineryManagement';
+import { BranchManagement } from './views/BranchManagement';
+import { AssetsManagement } from './views/AssetsManagement';
+import { OperationsOverhead } from './views/OperationsOverhead';
 
 const App: React.FC = () => {
   return (
-    <HashRouter>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/pos" element={<POS />} />
-          <Route path="/jobs" element={<JobManagement />} />
-          <Route path="/billing" element={<Placeholder name="Billing & Invoicing" />} />
-          <Route path="/customers" element={<Placeholder name="Customer CRM" />} />
-          <Route path="/inventory" element={<Inventory />} />
-          <Route path="/reports" element={<Placeholder name="Reports & Analytics" />} />
-          <Route path="/settings" element={<Placeholder name="Settings & Roles" />} />
-        </Routes>
-      </Layout>
-    </HashRouter>
+    <AppProvider>
+      <HashRouter>
+        <Layout>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/pos" element={<POS />} />
+            <Route path="/jobs" element={<JobManagement />} />
+            <Route path="/suppliers" element={<Suppliers />} />
+            <Route path="/billing" element={<Billing />} />
+            <Route path="/overheads" element={<OperationsOverhead />} />
+            <Route path="/finance" element={<Finance />} />
+            <Route path="/staff" element={<StaffManagement />} />
+            <Route path="/subscriptions" element={<Subscriptions />} />
+            <Route path="/machinery" element={<MachineryManagement />} />
+            <Route path="/branches" element={<BranchManagement />} />
+            <Route path="/assets" element={<AssetsManagement />} />
+            <Route path="/customers" element={<Customers />} />
+            <Route path="/inventory" element={<Inventory />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/settings" element={<Settings />} />
+          </Routes>
+        </Layout>
+      </HashRouter>
+    </AppProvider>
   );
 };
 
