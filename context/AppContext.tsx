@@ -188,6 +188,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [reviewLinks, setReviewLinks] = useState({ google: '', facebook: '' });
 
+  // Sync Dark Mode with the document class
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
+
   // Rehydration logic
   const rehydrateState = (p: any) => {
     if (!p) return;
