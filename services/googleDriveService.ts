@@ -4,7 +4,6 @@
 
 declare var google: any;
 
-const CLIENT_ID = '93721344400-h5tsh8pjrrs9u9n3i6r0j7r0j7r0j7r0.apps.googleusercontent.com'; // Placeholder, user should replace with their own
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 const DB_FILENAME = 'printmaster_enterprise_vault.json';
 
@@ -12,11 +11,13 @@ export class GoogleDriveService {
   private accessToken: string | null = null;
   private fileId: string | null = null;
 
-  async initAuth(): Promise<string> {
+  async initAuth(clientId: string): Promise<string> {
+    if (!clientId) throw new Error("Google Drive Client ID is not configured.");
+
     return new Promise((resolve, reject) => {
       try {
         const client = google.accounts.oauth2.initTokenClient({
-          client_id: CLIENT_ID,
+          client_id: clientId,
           scope: SCOPES,
           callback: (response: any) => {
             if (response.error) {
@@ -47,8 +48,8 @@ export class GoogleDriveService {
     return null;
   }
 
-  async saveDatabase(data: any) {
-    if (!this.accessToken) await this.initAuth();
+  async saveDatabase(data: any, clientId: string) {
+    if (!this.accessToken) await this.initAuth(clientId);
 
     const fileId = this.fileId || await this.findDatabaseFile();
     const fileContent = JSON.stringify(data, null, 2);
@@ -80,8 +81,8 @@ export class GoogleDriveService {
     return { success: true };
   }
 
-  async loadDatabase() {
-    if (!this.accessToken) await this.initAuth();
+  async loadDatabase(clientId: string) {
+    if (!this.accessToken) await this.initAuth(clientId);
     const fileId = await this.findDatabaseFile();
     if (fileId) {
       const contentResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {

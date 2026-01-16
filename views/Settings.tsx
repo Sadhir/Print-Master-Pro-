@@ -7,7 +7,7 @@ import {
   Monitor, DownloadCloud, UploadCloud, Box, FileSpreadsheet, Share2, ArrowRightLeft, 
   ArrowRight, X, Table, FileText, CheckCircle2, Users, Package, Lock,
   Fingerprint, Key, Plus, UserCheck, Edit2, Ghost, EyeOff, Eye, Palette, 
-  Layout as LayoutIcon, Type, Building, Smartphone
+  Layout as LayoutIcon, Type, Building, Smartphone, ExternalLink
 } from 'lucide-react';
 import { StorageProvider, UserRole, PaymentMethod, OrderSource, User, InvoiceTemplate } from '../types';
 import * as XLSX from 'xlsx';
@@ -15,7 +15,7 @@ import * as XLSX from 'xlsx';
 export const Settings = () => {
   const { 
     isCloudConnected, isAutoSyncEnabled, setIsAutoSyncEnabled, isStealthMode, setIsStealthMode,
-    connectCloud, syncToCloud, restoreFromCloud,
+    connectCloud, syncToCloud, restoreFromCloud, googleDriveClientId, setGoogleDriveClientId,
     exportAppState, importAppState, lastSync, currentUser, setCurrentUser, allUsers, addUser, updateUser, deleteUser,
     factoryReset, allTransactions, customers, allInventory, addTransaction, currentCurrency,
     invoiceSettings, updateInvoiceSettings
@@ -169,6 +169,26 @@ export const Settings = () => {
                   <h2 className="font-black text-lg dark:text-white uppercase tracking-tight">Cloud Vault</h2>
                 </div>
                 {isCloudConnected && <span className="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-200 animate-pulse"></span>}
+              </div>
+
+              <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl space-y-3">
+                 <div className="flex items-center justify-between px-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Google Client ID</label>
+                    <a href="https://console.cloud.google.com/" target="_blank" rel="noreferrer" className="text-[8px] font-black text-blue-600 uppercase flex items-center gap-1 hover:underline">
+                       <ExternalLink size={10} /> GCP Console
+                    </a>
+                 </div>
+                 <input 
+                    type="text" 
+                    className="w-full bg-white dark:bg-slate-900 border dark:border-slate-700 rounded-xl px-4 py-3 outline-none dark:text-white font-mono text-[10px] focus:border-blue-500 transition-all"
+                    value={googleDriveClientId}
+                    onChange={e => setGoogleDriveClientId(e.target.value)}
+                    placeholder="Enter your OAuth 2.0 Client ID..."
+                 />
+                 <p className="text-[8px] text-slate-400 font-medium leading-relaxed px-1">
+                    Required for Google Drive sync. Create an OAuth 2.0 Client ID (Web Application) in Google Cloud Console. 
+                    Add your current URL to 'Authorized JavaScript Origins'.
+                 </p>
               </div>
               
               <div className="flex flex-col gap-3 flex-1">

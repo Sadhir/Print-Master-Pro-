@@ -76,6 +76,8 @@ interface AppContextType {
   isAutoSyncEnabled: boolean;
   setIsAutoSyncEnabled: (enabled: boolean) => void;
   lastSync: string | null;
+  googleDriveClientId: string;
+  setGoogleDriveClientId: (id: string) => void;
   reviewLinks: { google: string; facebook: string };
   setReviewLinks: (links: { google: string; facebook: string }) => void;
   toggleDarkMode: () => void;
@@ -181,6 +183,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isCloudConnected, setIsCloudConnected] = useState<StorageProvider | null>(null);
   const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
+  const [googleDriveClientId, setGoogleDriveClientId] = useState<string>('');
   const [isStealthMode, setIsStealthMode] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [reviewLinks, setReviewLinks] = useState({ google: '', facebook: '' });
@@ -219,6 +222,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (p.isDarkMode !== undefined) setIsDarkMode(p.isDarkMode);
     if (p.reviewLinks) setReviewLinks(p.reviewLinks);
     if (p.lastSync) setLastSync(p.lastSync);
+    if (p.googleDriveClientId) setGoogleDriveClientId(p.googleDriveClientId);
   };
 
   const captureAppState = () => ({
@@ -227,7 +231,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     attendance, payroll, products, allInventory, allJobs, allTransactions,
     allCommitments, partners, invoiceSettings, creativeProjects,
     materials, processes, rentalFleet, rentalReadings, rentalPayments, rentalRepairs,
-    currentCurrency, isDarkMode, reviewLinks, lastSync
+    currentCurrency, isDarkMode, reviewLinks, lastSync, googleDriveClientId
   });
 
   // Load from local storage on boot
@@ -249,20 +253,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     allUsers, currentUser, customers, allJobs, creativeProjects, allTransactions, 
     allMachinery, materials, processes, rentalFleet, allInventory, allCommitments, 
     allAssets, branches, allAccounts, allStaff, allDuties, subscriptions, invoiceSettings,
-    currentCurrency, isDarkMode, reviewLinks
+    currentCurrency, isDarkMode, reviewLinks, googleDriveClientId
   ]);
 
   const connectCloud = async (provider: StorageProvider) => {
     try {
       if (provider === StorageProvider.GOOGLE_DRIVE) {
-        await driveService.initAuth();
+        if (!googleDriveClientId) {
+          alert("Please enter a Google Drive Client ID in System Settings before connecting.");
+          return;
+        }
+        await driveService.initAuth(googleDriveClientId);
       } else {
         await oneDriveService.initAuth();
       }
       setIsCloudConnected(provider);
       alert(`${provider.replace('_', ' ')} connected successfully.`);
     } catch (e) {
-      alert("Failed to connect cloud provider.");
+      alert("Failed to connect cloud provider. Ensure your Client ID is valid and the Redirect URI includes the current domain.");
       console.error(e);
     }
   };
@@ -272,7 +280,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const data = captureAppState();
       if (isCloudConnected === StorageProvider.GOOGLE_DRIVE) {
-        await driveService.saveDatabase(data);
+        await driveService.saveDatabase(data, googleDriveClientId);
       } else {
         await oneDriveService.saveDatabase(data);
       }
@@ -290,7 +298,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       let data: any;
       if (isCloudConnected === StorageProvider.GOOGLE_DRIVE) {
-        data = await driveService.loadDatabase();
+        data = await driveService.loadDatabase(googleDriveClientId);
       } else {
         data = await oneDriveService.loadDatabase();
       }
@@ -404,7 +412,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       allTransactions, transactions: filterByBranch(allTransactions), allCommitments, commitments: filterByBranch(allCommitments),
       allInventory, inventory: filterByBranch(allInventory),
       isDarkMode, isStealthMode, setIsStealthMode, currentCurrency, isCloudConnected, isAutoSyncEnabled, setIsAutoSyncEnabled, 
-      lastSync, reviewLinks, setReviewLinks, toggleDarkMode: () => setIsDarkMode(!isDarkMode), setCurrency: setCurrentCurrency,
+      lastSync, googleDriveClientId, setGoogleDriveClientId, reviewLinks, setReviewLinks, toggleDarkMode: () => setIsDarkMode(!isDarkMode), setCurrency: setCurrentCurrency,
       addTransaction, deleteTransaction: (id) => setAllTransactions(prev => prev.filter(t => t.id !== id)), transferFunds: () => {}, 
       addJob, updateJob, deleteJob, updateJobStatus: (id, status) => updateJob(id, { status }), addCustomer,
       updateCustomer: (id, u) => setCustomers(prev => prev.map(c => c.id === id ? { ...c, ...u } : c)), 
