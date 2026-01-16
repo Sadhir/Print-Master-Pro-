@@ -2,46 +2,26 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
-  Wallet, 
-  ArrowRightLeft, 
-  TrendingUp, 
-  Users, 
-  DollarSign, 
-  Plus, 
-  Info,
-  Banknote,
-  Landmark,
-  PiggyBank,
-  Key,
-  Receipt,
-  FileText,
-  ShieldCheck,
-  Zap,
-  Droplets,
-  Home,
-  Building,
-  ArrowRight,
-  // Added missing X icon import
-  X
+  Wallet, ArrowRightLeft, TrendingUp, Users, DollarSign, Plus, Info,
+  Banknote, Landmark, PiggyBank, Key, Receipt, FileText, ShieldCheck, 
+  Zap, Droplets, Home, Building, ArrowRight, X, Trash2, Edit3, Save, Percent
 } from 'lucide-react';
-import { CommitmentCategory, Transaction, Job, CurrencyCode } from '../types';
+import { CommitmentCategory, Transaction, Job, CurrencyCode, UserRole } from '../types';
 
 export const Finance = () => {
   const { 
-    accounts, 
-    partners, 
-    transferFunds, 
-    currentCurrency, 
-    jobs, 
-    transactions, 
-    allCommitments,
-    branches 
+    accounts, partners, transferFunds, currentCurrency, jobs, transactions, 
+    allCommitments, branches, addPartner, updatePartner, deletePartner, currentUser 
   } = useApp();
   
   const [showTransfer, setShowTransfer] = useState(false);
+  const [showPartnerModal, setShowPartnerModal] = useState(false);
   const [transferData, setTransferData] = useState({ from: '', to: '', amount: 0 });
+  const [partnerForm, setPartnerForm] = useState({ name: '', sharePercentage: 50 });
+  const [editingPartnerId, setEditingPartnerId] = useState<string | null>(null);
 
-  // --- Financial Aggregations ---
+  const isAdmin = currentUser.role === UserRole.ADMIN;
+
   const totalSales = jobs.reduce((acc, j) => acc + j.paidAmount, 0) + 
                     transactions.filter(t => t.type === 'SALE').reduce((acc, t) => acc + t.amount, 0);
   
@@ -52,19 +32,6 @@ export const Finance = () => {
   const outsourcedCost = jobs.reduce((acc, j) => acc + (j.outsourcedCost || 0), 0);
   const netProfit = totalSales - outsourcedCost - totalOperationalExpenses;
 
-  // --- Overhead Aggregations ---
-  const pendingOverheads = allCommitments
-    .filter(c => c.status !== 'PAID')
-    .reduce((acc, c) => acc + c.amount, 0);
-
-  const totalKeymoney = allCommitments
-    .filter(c => c.category === CommitmentCategory.KEYMONEY)
-    .reduce((acc, c) => acc + c.amount, 0);
-
-  const totalGovtCompliance = allCommitments
-    .filter(c => [CommitmentCategory.GOVT_TAX, CommitmentCategory.LICENCE, CommitmentCategory.BIZ_REGISTRATION].includes(c.category))
-    .reduce((acc, c) => acc + c.amount, 0);
-
   const handleTransfer = (e: React.FormEvent) => {
     e.preventDefault();
     if (transferData.from && transferData.to && transferData.amount > 0) {
@@ -74,211 +41,168 @@ export const Finance = () => {
     }
   };
 
-  const accountIcons = {
-    CASH: Banknote,
-    BANK: Landmark,
-    SAVINGS: PiggyBank
+  const handlePartnerSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingPartnerId) {
+      updatePartner(editingPartnerId, partnerForm);
+    } else {
+      addPartner(partnerForm);
+    }
+    setShowPartnerModal(false);
+    setPartnerForm({ name: '', sharePercentage: 50 });
+    setEditingPartnerId(null);
   };
+
+  const accountIcons = { CASH: Banknote, BANK: Landmark, SAVINGS: PiggyBank };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold dark:text-white uppercase tracking-tight">Financial Value & Equity</h1>
-          <p className="text-slate-500 dark:text-slate-400">Comprehensive overview of cash, assets, liabilities, and partner shares.</p>
+          <p className="text-slate-500 dark:text-slate-400 font-medium">Global cash flow, liabilities, and partner ownership split.</p>
         </div>
-        <button 
-          onClick={() => setShowTransfer(true)}
-          className="flex items-center gap-2 bg-blue-600 px-6 py-3 rounded-xl font-black text-white shadow-lg hover:bg-blue-700 transition-all uppercase tracking-widest text-xs"
-        >
-          <ArrowRightLeft size={20} /> Internal Transfer
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => setShowPartnerModal(true)}
+            className="flex items-center gap-2 bg-white dark:bg-slate-800 border dark:border-slate-700 px-6 py-3 rounded-xl font-black text-slate-700 dark:text-slate-200 shadow-sm hover:bg-slate-50 transition-all uppercase tracking-widest text-[10px]"
+          >
+            <Users size={18} /> Manage Partners
+          </button>
+          <button 
+            onClick={() => setShowTransfer(true)}
+            className="flex items-center gap-2 bg-blue-600 px-6 py-3 rounded-xl font-black text-white shadow-lg hover:bg-blue-700 transition-all uppercase tracking-widest text-[10px]"
+          >
+            <ArrowRightLeft size={20} /> Internal Transfer
+          </button>
+        </div>
       </div>
 
-      {/* Main Asset Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <ValueStatCard 
-          label="Total Keymoney" 
-          value={totalKeymoney} 
-          icon={Key} 
-          color="bg-indigo-600" 
-          currency={currentCurrency} 
-          sub="Locked Asset Value"
-        />
-        <ValueStatCard 
-          label="Pending Bills" 
-          value={pendingOverheads} 
-          icon={Receipt} 
-          color="bg-red-500" 
-          currency={currentCurrency} 
-          sub="Unpaid Overheads"
-        />
-        <ValueStatCard 
-          label="Compliance Costs" 
-          value={totalGovtCompliance} 
-          icon={ShieldCheck} 
-          color="bg-amber-500" 
-          currency={currentCurrency} 
-          sub="Tax, Licence & Reg."
-        />
-        <ValueStatCard 
-          label="Current Net Profit" 
-          value={netProfit} 
-          icon={TrendingUp} 
-          color="bg-green-600" 
-          currency={currentCurrency} 
-          sub="Available for Sharing"
-        />
+        <ValueStatCard label="Total Net Profit" value={netProfit} icon={TrendingUp} color="bg-green-600" currency={currentCurrency} sub="Available for Sharing" />
+        <ValueStatCard label="Pending Bills" value={allCommitments.filter(c => c.status !== 'PAID').reduce((a,c)=>a+c.amount,0)} icon={Receipt} color="bg-red-500" currency={currentCurrency} sub="Unpaid Overheads" />
+        <ValueStatCard label="Cash Pool" value={accounts.reduce((a,c)=>a+c.balance,0)} icon={Wallet} color="bg-blue-600" currency={currentCurrency} sub="Liquid Assets" />
+        <ValueStatCard label="Compliance Costs" value={allCommitments.filter(c => [CommitmentCategory.GOVT_TAX, CommitmentCategory.LICENCE].includes(c.category)).reduce((a,c)=>a+c.amount,0)} icon={ShieldCheck} color="bg-amber-500" currency={currentCurrency} sub="Tax & Reg." />
       </div>
 
-      {/* Financial Accounts Section */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {accounts.map(acc => {
-          const Icon = (accountIcons as any)[acc.type];
-          const branch = branches.find(b => b.id === acc.branchId);
-          return (
-            <div key={acc.id} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-4">
-                  <div className="p-4 bg-blue-50 dark:bg-blue-900/30 text-blue-600 rounded-2xl transition-transform group-hover:scale-110">
-                    <Icon size={24} />
-                  </div>
-                  <div>
-                    <h3 className="font-black dark:text-white uppercase tracking-tight">{acc.name}</h3>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{branch?.name || 'Central'}</p>
-                  </div>
-                </div>
-                <span className="bg-slate-50 dark:bg-slate-800 text-[8px] font-black px-2 py-1 rounded-full text-slate-400 uppercase">{acc.type}</span>
+      <div className="bg-white dark:bg-slate-900 p-10 rounded-[3rem] border border-slate-100 dark:border-slate-800 shadow-sm space-y-10">
+        <div className="flex items-center justify-between">
+           <div className="flex items-center gap-4">
+              <div className="p-4 bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded-2xl">
+                 <Users size={32} />
               </div>
-              <p className="text-3xl font-black dark:text-white">{currentCurrency} {acc.balance.toLocaleString()}</p>
-              <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                <Icon size={140} />
+              <div>
+                 <h2 className="text-2xl font-black dark:text-white uppercase tracking-tight">Partner Equity Matrix</h2>
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Real-time split of shareable profit pool</p>
               </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Profit Sharing Panel */}
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm space-y-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-purple-50 dark:bg-purple-900/30 text-purple-600 rounded-2xl">
-                <Users size={24} />
-              </div>
-              <h2 className="font-black text-xl dark:text-white uppercase tracking-tight">Partner Equity Split</h2>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Shareable Pool</p>
-              <p className="text-2xl font-black text-green-600">{currentCurrency} {netProfit.toLocaleString()}</p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {partners.map(partner => {
-              const shareValue = (netProfit * (partner.sharePercentage / 100));
-              const currentEquity = shareValue - partner.totalDraws;
-              return (
-                <div key={partner.id} className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-800 group hover:border-purple-300 transition-all">
-                  <div className="flex justify-between items-start mb-6">
-                    <div>
-                      <h4 className="font-black text-lg dark:text-white uppercase tracking-tight">{partner.name}</h4>
-                      <p className="text-[10px] text-purple-600 font-black tracking-widest uppercase">{partner.sharePercentage}% Ownership Stake</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Share Val.</p>
-                      <p className="font-black text-lg dark:text-white">{currentCurrency} {shareValue.toLocaleString()}</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-8 pt-6 border-t dark:border-slate-700">
-                    <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Withdrawn</p>
-                      <p className="text-red-500 font-black">-{currentCurrency} {partner.totalDraws.toLocaleString()}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Available to Draw</p>
-                      <p className="text-green-600 font-black text-xl">{currentCurrency} {currentEquity.toLocaleString()}</p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          
-          <div className="p-6 bg-blue-50 dark:bg-blue-900/20 rounded-[2rem] border border-blue-100 dark:border-blue-900/30 flex gap-4">
-             <Info size={24} className="text-blue-600 shrink-0" />
-             <div className="space-y-1">
-                <p className="text-[10px] font-black text-blue-700 dark:text-blue-300 uppercase tracking-widest">Accounting Logic</p>
-                <p className="text-xs font-medium text-blue-600 dark:text-blue-400 leading-relaxed">
-                  Net Profit = (Total POS Sales + Job Revenue) - (Outsourced Costs + Rent + Utilities + Maintenance + Staff Costs).
-                </p>
-             </div>
-          </div>
+           </div>
+           <div className="text-right">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Stake %</p>
+              <p className={`text-3xl font-black ${partners.reduce((a,b)=>a+b.sharePercentage,0) > 100 ? 'text-red-500' : 'text-blue-600'}`}>
+                {partners.reduce((a,b)=>a+b.sharePercentage,0)}%
+              </p>
+           </div>
         </div>
 
-        <div className="space-y-8">
-          {/* Unpaid Overheads Preview */}
-          <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="font-black text-xl dark:text-white uppercase tracking-tight">Pending Liabilities</h3>
-              <span className="bg-red-50 text-red-600 text-[8px] font-black px-2 py-1 rounded-full">ACTION REQUIRED</span>
-            </div>
-            <div className="space-y-3">
-              {allCommitments.filter(c => c.status !== 'PAID').length === 0 ? (
-                <div className="py-10 text-center text-slate-400 font-black uppercase text-[10px] tracking-widest">No outstanding bills</div>
-              ) : (
-                allCommitments.filter(c => c.status !== 'PAID').slice(0, 4).map(c => (
-                  <div key={c.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border dark:border-slate-800">
-                    <div className="flex items-center gap-4">
-                      <div className="p-2 bg-white dark:bg-slate-700 rounded-xl shadow-sm text-slate-400">
-                        {c.category === CommitmentCategory.SHOP_RENTAL ? <Home size={16} /> : 
-                         c.category === CommitmentCategory.ELECTRICITY ? <Zap size={16} /> :
-                         <Receipt size={16} />}
-                      </div>
-                      <div>
-                        <p className="text-xs font-black dark:text-white uppercase tracking-tight">{c.name}</p>
-                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Due: {c.dueDate || 'N/A'}</p>
-                      </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+           {partners.length === 0 ? (
+             <div className="lg:col-span-2 py-20 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[2.5rem]">
+                <Users size={48} className="mx-auto text-slate-200 dark:text-slate-800 mb-4" />
+                <p className="text-sm font-black text-slate-400 uppercase tracking-widest">No partners registered</p>
+             </div>
+           ) : (
+             partners.map(partner => {
+               const shareValue = (netProfit * (partner.sharePercentage / 100));
+               const currentEquity = shareValue - partner.totalDraws;
+               return (
+                 <div key={partner.id} className="p-8 bg-slate-50 dark:bg-slate-800/50 rounded-[2.5rem] border dark:border-slate-700 relative group overflow-hidden">
+                    <div className="flex items-start justify-between mb-8 relative z-10">
+                       <div>
+                          <h4 className="font-black text-xl dark:text-white uppercase tracking-tight">{partner.name}</h4>
+                          <div className="flex items-center gap-1.5 mt-1">
+                             <Percent size={12} className="text-purple-600" />
+                             <span className="text-[10px] font-black text-purple-600 uppercase tracking-widest">{partner.sharePercentage}% Ownership Stake</span>
+                          </div>
+                       </div>
+                       <div className="flex gap-2">
+                          <button 
+                            onClick={() => { setPartnerForm({ name: partner.name, sharePercentage: partner.sharePercentage }); setEditingPartnerId(partner.id); setShowPartnerModal(true); }}
+                            className="p-3 bg-white dark:bg-slate-700 rounded-xl text-slate-400 hover:text-blue-600 transition-all shadow-sm"
+                          >
+                             <Edit3 size={18} />
+                          </button>
+                          <button 
+                            onClick={() => { if(window.confirm(`Delete partner ${partner.name}?`)) deletePartner(partner.id); }}
+                            className="p-3 bg-white dark:bg-slate-700 rounded-xl text-slate-400 hover:text-red-500 transition-all shadow-sm"
+                          >
+                             <Trash2 size={18} />
+                          </button>
+                       </div>
                     </div>
-                    <p className="font-black text-red-500 text-sm">{currentCurrency} {c.amount.toLocaleString()}</p>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
 
-          {/* Keymoney / Deposit Values */}
-          <div className="bg-slate-900 p-8 rounded-[2.5rem] text-white shadow-xl relative overflow-hidden">
-             <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-3 bg-blue-600 rounded-2xl">
-                    <Key size={24} />
-                  </div>
-                  <h3 className="font-black text-xl uppercase tracking-tight">Business Security Values</h3>
+                    <div className="grid grid-cols-2 gap-8 relative z-10 border-t dark:border-slate-700 pt-8">
+                       <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Gross Share</p>
+                          <p className="text-xl font-black dark:text-white leading-none">{currentCurrency} {shareValue.toLocaleString()}</p>
+                       </div>
+                       <div className="text-right">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Available Equity</p>
+                          <p className={`text-2xl font-black leading-none ${currentEquity < 0 ? 'text-red-500' : 'text-green-600'}`}>{currentCurrency} {currentEquity.toLocaleString()}</p>
+                       </div>
+                    </div>
+                    <Users size={160} className="absolute -right-12 -bottom-12 opacity-[0.03] group-hover:rotate-12 transition-transform" />
+                 </div>
+               );
+             })
+           )}
+        </div>
+      </div>
+
+      {/* Partner Management Modal */}
+      {showPartnerModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[150] flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-[3rem] w-full max-w-lg p-10 animate-in zoom-in border dark:border-slate-800 shadow-2xl">
+             <div className="flex items-center justify-between mb-8">
+                <h2 className="text-2xl font-black dark:text-white uppercase tracking-tight">{editingPartnerId ? 'Edit Partner Stake' : 'Register New Partner'}</h2>
+                <button onClick={() => { setShowPartnerModal(false); setEditingPartnerId(null); }} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full dark:text-white"><X size={24} /></button>
+             </div>
+             <form onSubmit={handlePartnerSubmit} className="space-y-6">
+                <div>
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Legal Partner Name</label>
+                   <input required type="text" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 rounded-2xl px-6 py-4 outline-none dark:text-white font-bold" value={partnerForm.name} onChange={e => setPartnerForm({...partnerForm, name: e.target.value})} placeholder="e.g. Michael Thorne" />
                 </div>
-                <div className="space-y-6">
-                   <div className="grid grid-cols-2 gap-6">
-                      <div className="p-6 bg-white/5 rounded-3xl border border-white/10">
-                         <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Total Keymoney</p>
-                         <p className="text-2xl font-black text-blue-400">{currentCurrency} {totalKeymoney.toLocaleString()}</p>
-                      </div>
-                      <div className="p-6 bg-white/5 rounded-3xl border border-white/10">
-                         <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Compliance Assets</p>
-                         <p className="text-2xl font-black text-amber-400">{currentCurrency} {totalGovtCompliance.toLocaleString()}</p>
-                      </div>
+                <div>
+                   <div className="flex justify-between items-center mb-2">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Share Percentage</label>
+                     <span className="font-black text-blue-600">{partnerForm.sharePercentage}%</span>
                    </div>
-                   <p className="text-[10px] text-slate-400 font-medium leading-relaxed uppercase tracking-widest">
-                     Security deposits (Keymoney) and business registration fees are considered non-liquid value entries in your business valuation.
+                   <input 
+                    type="range" min="1" max="100" 
+                    className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    value={partnerForm.sharePercentage}
+                    onChange={e => setPartnerForm({...partnerForm, sharePercentage: Number(e.target.value)})}
+                   />
+                   <div className="flex justify-between text-[8px] font-black text-slate-400 mt-2">
+                      <span>1%</span>
+                      <span>50%</span>
+                      <span>100%</span>
+                   </div>
+                </div>
+                <div className="p-6 bg-blue-50 dark:bg-blue-900/10 rounded-2xl border border-blue-100 dark:border-blue-900/30 flex gap-4">
+                   <Info size={20} className="text-blue-600 shrink-0" />
+                   <p className="text-[10px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider leading-relaxed">
+                     Profit split is calculated automatically based on this value after all expenses and overheads are deducted from gross revenue.
                    </p>
                 </div>
-             </div>
-             <Building size={180} className="absolute -right-12 -bottom-12 opacity-5" />
+                <button type="submit" className="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-xl hover:bg-blue-700 transition-all uppercase tracking-[0.2em] text-xs flex items-center justify-center gap-2">
+                  <Save size={18} /> {editingPartnerId ? 'Update Equity Data' : 'Authorize Partner'}
+                </button>
+             </form>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Internal Transfer Modal */}
+      {/* Internal Transfer Modal remains as is from previous file content */}
       {showTransfer && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 rounded-[3rem] w-full max-w-lg shadow-2xl border dark:border-slate-800 overflow-hidden animate-in zoom-in duration-300 p-10">

@@ -19,6 +19,8 @@ import { MachineryManagement } from './views/MachineryManagement';
 import { BranchManagement } from './views/BranchManagement';
 import { AssetsManagement } from './views/AssetsManagement';
 import { OperationsOverhead } from './views/OperationsOverhead';
+import { ProductCatalog } from './views/ProductCatalog';
+import { CostCalculator } from './views/CostCalculator';
 
 const App: React.FC = () => {
   return (
@@ -29,6 +31,8 @@ const App: React.FC = () => {
             <Route path="/" element={<Dashboard />} />
             <Route path="/pos" element={<POS />} />
             <Route path="/jobs" element={<JobManagement />} />
+            <Route path="/costing" element={<CostCalculator />} />
+            <Route path="/catalog" element={<ProductCatalog />} />
             <Route path="/suppliers" element={<Suppliers />} />
             <Route path="/billing" element={<Billing />} />
             <Route path="/overheads" element={<OperationsOverhead />} />

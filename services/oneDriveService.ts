@@ -1,6 +1,6 @@
 
 /**
- * Service to manage OneDrive as a persistence layer.
+ * Service to manage OneDrive as a persistence layer via Microsoft Graph.
  */
 
 const CLIENT_ID = 'YOUR_ONEDRIVE_CLIENT_ID';
@@ -11,7 +11,7 @@ export class OneDriveService {
   private accessToken: string | null = null;
 
   async initAuth(): Promise<string> {
-    // Simulated OneDrive OAuth flow
+    // In a real environment, this would involve a popup flow or redirect
     return new Promise((resolve) => {
       setTimeout(() => {
         this.accessToken = 'simulated_onedrive_token';
@@ -23,15 +23,29 @@ export class OneDriveService {
   async saveDatabase(data: any) {
     if (!this.accessToken) throw new Error('Not authenticated with OneDrive');
     
-    // In real implementation: PUT https://graph.microsoft.com/v1.0/me/drive/root:/${DB_FILENAME}:/content
-    console.log('Saving to OneDrive...', data);
-    return { success: true };
+    const fileContent = JSON.stringify(data);
+    // Microsoft Graph API simple upload (up to 4MB)
+    const response = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${DB_FILENAME}:/content`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: fileContent
+    });
+
+    if (!response.ok) throw new Error('OneDrive save failed');
+    return await response.json();
   }
 
   async loadDatabase() {
     if (!this.accessToken) throw new Error('Not authenticated with OneDrive');
-    // In real implementation: GET https://graph.microsoft.com/v1.0/me/drive/root:/${DB_FILENAME}:/content
-    return null;
+    const response = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${DB_FILENAME}:/content`, {
+      headers: { Authorization: `Bearer ${this.accessToken}` },
+    });
+    
+    if (response.status === 404) return null;
+    return await response.json();
   }
 }
 

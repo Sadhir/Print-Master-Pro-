@@ -16,6 +16,7 @@ export const generateProfessionalMessage = async (type: MessageType, data: any) 
     Total Due: ${data.amount || 'N/A'}
     Current Status: ${data.status || 'Active'}
     Business Branch: ${data.branchName || 'Main HQ'}
+    ${data.urgency ? `Reminder Window: ${data.urgency}` : ''}
     ${data.platform ? `Review Platform: ${data.platform}` : ''}
     ${data.reviewLink ? `Direct Link: ${data.reviewLink}` : ''}
     
@@ -29,7 +30,10 @@ export const generateProfessionalMessage = async (type: MessageType, data: any) 
     - If it's a birthday wish:
       - Be warm, celebratory, and include a small token of appreciation (e.g., a 10% discount on their next design project).
       - Do not mention specific ages.
-    - If it's a payment reminder, be polite but firm.
+    - If it's a payment reminder:
+      - Window "15-Day Notice": Be very friendly, just informing them about the upcoming deadline and balance.
+      - Window "3-Day Warning": Be professional but more direct, mentioning the job is nearing completion/delivery and funds are needed to finalize.
+      - Window "Continuous Follow-up" or "Immediate Overdue": Be polite but firm. Mention the job is ready or overdue and payment is required immediately to avoid delivery delays.
     - If it's dispatch ready, include excitement.
     - Do not use placeholders like [Name], use the provided data.
     - End with "PrintMaster Pro Team".`;

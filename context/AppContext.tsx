@@ -1,10 +1,11 @@
-
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { 
   Customer, Product, Job, InventoryItem, Transaction, JobStatus, 
   PaymentMethod, CurrencyCode, StorageProvider, Supplier, Partner, FinancialAccount,
   StaffMember, AttendanceRecord, PayrollRecord, UserRole, BusinessSubscription, StaffDuty, DutyStatus, OrderSource,
-  Machinery, MachineryService, CompanyAsset, Branch, BusinessCommitment, CommitmentCategory
+  Machinery, MachineryService, CompanyAsset, Branch, BusinessCommitment, CommitmentCategory, User, InvoiceSettings,
+  Material, ProductionProcess, MaterialUnit, CostBreakdown,
+  CreativeProject, DesignStatus, RentalMachinery, RentalCounterReading, RentalPayment, RentalRepair
 } from '../types';
 import { 
   MOCK_CUSTOMERS, MOCK_PRODUCTS, MOCK_JOBS, MOCK_INVENTORY, 
@@ -16,8 +17,12 @@ import { driveService } from '../services/googleDriveService';
 import { oneDriveService } from '../services/oneDriveService';
 
 interface AppContextType {
-  currentUser: { name: string; role: UserRole };
-  setCurrentRole: (role: UserRole) => void;
+  currentUser: User;
+  allUsers: User[];
+  setCurrentUser: (user: User) => void;
+  addUser: (user: Omit<User, 'id'>) => void;
+  updateUser: (id: string, updates: Partial<User>) => void;
+  deleteUser: (id: string) => void;
   selectedBranchId: string;
   setSelectedBranchId: (id: string) => void;
   customers: Customer[];
@@ -39,17 +44,37 @@ interface AppContextType {
   attendance: AttendanceRecord[];
   payroll: PayrollRecord[];
   products: Product[];
+  materials: Material[];
+  processes: ProductionProcess[];
+  creativeProjects: CreativeProject[];
+  addCreativeProject: (p: Omit<CreativeProject, 'id'>) => void;
+  updateCreativeProject: (id: string, updates: Partial<CreativeProject>) => void;
+  deleteCreativeProject: (id: string) => void;
+  rentalFleet: RentalMachinery[];
+  rentalReadings: RentalCounterReading[];
+  rentalPayments: RentalPayment[];
+  rentalRepairs: RentalRepair[];
+  addRentalMachine: (m: Omit<RentalMachinery, 'id'>) => void;
+  updateRentalMachine: (id: string, updates: Partial<RentalMachinery>) => void;
+  deleteRentalMachine: (id: string) => void;
+  addRentalReading: (r: Omit<RentalCounterReading, 'id'>) => void;
+  addRentalPayment: (p: Omit<RentalPayment, 'id'>) => void;
+  addRentalRepair: (r: Omit<RentalRepair, 'id'>) => void;
   allJobs: Job[];
   jobs: Job[];
-  allInventory: InventoryItem[];
-  inventory: InventoryItem[];
   allTransactions: Transaction[];
   transactions: Transaction[];
   allCommitments: BusinessCommitment[];
   commitments: BusinessCommitment[];
+  allInventory: InventoryItem[];
+  inventory: InventoryItem[];
   isDarkMode: boolean;
+  isStealthMode: boolean;
+  setIsStealthMode: (val: boolean) => void;
   currentCurrency: CurrencyCode;
   isCloudConnected: StorageProvider | null;
+  isAutoSyncEnabled: boolean;
+  setIsAutoSyncEnabled: (enabled: boolean) => void;
   lastSync: string | null;
   reviewLinks: { google: string; facebook: string };
   setReviewLinks: (links: { google: string; facebook: string }) => void;
@@ -62,8 +87,7 @@ interface AppContextType {
   updateJob: (id: string, updates: Partial<Job>) => void;
   deleteJob: (id: string) => void;
   updateJobStatus: (id: string, status: JobStatus) => void;
-  updateInventory: (itemId: string, delta: number) => void;
-  addCustomer: (c: Omit<Customer, 'id'>) => void;
+  addCustomer: (c: Omit<Customer, 'id'>) => Customer;
   updateCustomer: (id: string, updates: Partial<Customer>) => void;
   deleteCustomer: (id: string) => void;
   addBranch: (b: Omit<Branch, 'id'>) => void;
@@ -72,10 +96,9 @@ interface AppContextType {
   addAsset: (a: Omit<CompanyAsset, 'id'>) => void;
   updateAsset: (id: string, updates: Partial<CompanyAsset>) => void;
   deleteAsset: (id: string) => void;
-  importCustomers: (data: Array<{ name: string, phone: string }>) => void;
-  importLegacyData: (data: Array<{ date: string, amount: number, description: string }>) => void;
   addStaff: (s: Omit<StaffMember, 'id' | 'onDuty' | 'totalAdvances' | 'branchId'>) => void;
-  addDuty: (duty: Omit<StaffDuty, 'id' | 'createdAt'>) => void;
+  updateStaffAdvance: (staffId: string, amount: number) => void;
+  addDuty: (duty: Omit<StaffDuty, 'id' | 'createdAt' | 'branchId'>) => void;
   updateDuty: (id: string, updates: Partial<StaffDuty>) => void;
   addSubscription: (sub: Omit<BusinessSubscription, 'id'>) => void;
   deleteSubscription: (id: string) => void;
@@ -83,31 +106,54 @@ interface AppContextType {
   updateMachinery: (id: string, updates: Partial<Machinery>) => void;
   deleteMachinery: (id: string) => void;
   addMachineryService: (ms: Omit<MachineryService, 'id'>) => void;
-  updateStaffAdvance: (id: string, amount: number) => void;
   clockInOut: (staffId: string) => void;
   addAttendance: (record: Omit<AttendanceRecord, 'id'>) => void;
   addCommitment: (c: Omit<BusinessCommitment, 'id'>) => void;
   updateCommitment: (id: string, updates: Partial<BusinessCommitment>) => void;
   deleteCommitment: (id: string) => void;
   payCommitment: (id: string, accountId: string) => void;
+  addPartner: (p: Omit<Partner, 'id' | 'totalDraws'>) => void;
+  updatePartner: (id: string, updates: Partial<Partner>) => void;
+  deletePartner: (id: string) => void;
+  updateInventory: (itemId: string, delta: number) => void;
+  addMaterial: (m: Omit<Material, 'id'>) => void;
+  updateMaterial: (id: string, updates: Partial<Material>) => void;
+  deleteMaterial: (id: string) => void;
+  addProcess: (p: Omit<ProductionProcess, 'id'>) => void;
+  updateProcess: (id: string, updates: Partial<ProductionProcess>) => void;
+  deleteProcess: (id: string) => void;
+  addProduct: (p: Omit<Product, 'id'>) => Product;
+  updateProduct: (id: string, updates: Partial<Product>) => void;
+  deleteProduct: (id: string) => void;
+  importProducts: (data: Product[]) => void;
+  invoiceSettings: InvoiceSettings;
+  updateInvoiceSettings: (updates: Partial<InvoiceSettings>) => void;
   connectCloud: (provider: StorageProvider) => Promise<void>;
   syncToCloud: () => Promise<void>;
   restoreFromCloud: () => Promise<void>;
   exportAppState: () => void;
   importAppState: (json: string) => void;
+  factoryReset: () => void;
+  importCustomers: (data: Array<{ name: string, phone: string }>) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const DEFAULT_ADMIN: User = { id: 'u-admin', name: 'Administrator', role: UserRole.ADMIN, avatarColor: 'bg-blue-600', pin: '1234' };
+const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
+  template: 'MODERN', primaryColor: '#2563eb', businessLogoUrl: 'https://cdn-icons-png.flaticon.com/512/4420/4420933.png',
+  businessName: 'PRINTMASTER PRO', businessTagline: 'Professional Printing Solutions', businessAddress: 'Central Hub',
+  businessPhone: '+000', businessEmail: 'contact@printmaster.com', footerNotes: 'Thank you for your business!',
+  showPaymentDetails: true, bankDetails: 'Bank: Enterprise Trust\nAcc: 12345678'
+};
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState({ name: 'Administrator', role: UserRole.ADMIN });
+  const [allUsers, setAllUsers] = useState<User[]>([DEFAULT_ADMIN]);
+  const [currentUser, setCurrentUser] = useState<User>(DEFAULT_ADMIN);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('b1');
-  
   const [customers, setCustomers] = useState<Customer[]>(MOCK_CUSTOMERS);
   const [branches, setBranches] = useState<Branch[]>(MOCK_BRANCHES);
   const [allAssets, setAllAssets] = useState<CompanyAsset[]>(MOCK_ASSETS);
-  const [suppliers, setSuppliers] = useState<Supplier[]>(MOCK_SUPPLIERS);
-  const [partners, setPartners] = useState<Partner[]>(MOCK_PARTNERS);
   const [allAccounts, setAllAccounts] = useState<FinancialAccount[]>(MOCK_ACCOUNTS);
   const [allStaff, setAllStaff] = useState<StaffMember[]>(MOCK_STAFF);
   const [allDuties, setAllDuties] = useState<StaffDuty[]>(MOCK_DUTIES);
@@ -116,425 +162,274 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [machineServices, setMachineServices] = useState<MachineryService[]>(MOCK_MACHINERY_SERVICES);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [payroll, setPayroll] = useState<PayrollRecord[]>([]);
-  const [products] = useState<Product[]>(MOCK_PRODUCTS);
-  const [allJobs, setAllJobs] = useState<Job[]>(MOCK_JOBS);
+  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
   const [allInventory, setAllInventory] = useState<InventoryItem[]>(MOCK_INVENTORY);
+  const [allJobs, setAllJobs] = useState<Job[]>(MOCK_JOBS);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [allCommitments, setAllCommitments] = useState<BusinessCommitment[]>([]);
-  const [reviewLinks, setReviewLinks] = useState({ google: '', facebook: '' });
-  
+  const [partners, setPartners] = useState<Partner[]>(MOCK_PARTNERS);
+  const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings>(DEFAULT_INVOICE_SETTINGS);
+  const [creativeProjects, setCreativeProjects] = useState<CreativeProject[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [processes, setProcesses] = useState<ProductionProcess[]>([]);
+  const [rentalFleet, setRentalFleet] = useState<RentalMachinery[]>([]);
+  const [rentalReadings, setRentalReadings] = useState<RentalCounterReading[]>([]);
+  const [rentalPayments, setRentalPayments] = useState<RentalPayment[]>([]);
+  const [rentalRepairs, setRentalRepairs] = useState<RentalRepair[]>([]);
+
   const [currentCurrency, setCurrentCurrency] = useState<CurrencyCode>(CurrencyCode.LKR);
   const [isCloudConnected, setIsCloudConnected] = useState<StorageProvider | null>(null);
+  const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
-  
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    const saved = localStorage.getItem('printmaster_theme');
-    return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const [isStealthMode, setIsStealthMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [reviewLinks, setReviewLinks] = useState({ google: '', facebook: '' });
+
+  // Rehydration logic
+  const rehydrateState = (p: any) => {
+    if (!p) return;
+    if (p.allUsers) setAllUsers(p.allUsers);
+    if (p.currentUser) setCurrentUser(p.currentUser);
+    if (p.customers) setCustomers(p.customers);
+    if (p.branches) setBranches(p.branches);
+    if (p.allAssets) setAllAssets(p.allAssets);
+    if (p.allAccounts) setAllAccounts(p.allAccounts);
+    if (p.allStaff) setAllStaff(p.allStaff);
+    if (p.allDuties) setAllDuties(p.allDuties);
+    if (p.subscriptions) setSubscriptions(p.subscriptions);
+    if (p.allMachinery) setAllMachinery(p.allMachinery);
+    if (p.machineServices) setMachineServices(p.machineServices);
+    if (p.attendance) setAttendance(p.attendance);
+    if (p.payroll) setPayroll(p.payroll);
+    if (p.products) setProducts(p.products);
+    if (p.allInventory) setAllInventory(p.allInventory);
+    if (p.allJobs) setAllJobs(p.allJobs);
+    if (p.allTransactions) setAllTransactions(p.allTransactions);
+    if (p.allCommitments) setAllCommitments(p.allCommitments);
+    if (p.partners) setPartners(p.partners);
+    if (p.invoiceSettings) setInvoiceSettings(p.invoiceSettings);
+    if (p.creativeProjects) setCreativeProjects(p.creativeProjects);
+    if (p.materials) setMaterials(p.materials);
+    if (p.processes) setProcesses(p.processes);
+    if (p.rentalFleet) setRentalFleet(p.rentalFleet);
+    if (p.rentalReadings) setRentalReadings(p.rentalReadings);
+    if (p.rentalPayments) setRentalPayments(p.rentalPayments);
+    if (p.rentalRepairs) setRentalRepairs(p.rentalRepairs);
+    if (p.currentCurrency) setCurrentCurrency(p.currentCurrency);
+    if (p.isDarkMode !== undefined) setIsDarkMode(p.isDarkMode);
+    if (p.reviewLinks) setReviewLinks(p.reviewLinks);
+    if (p.lastSync) setLastSync(p.lastSync);
+  };
+
+  const captureAppState = () => ({
+    allUsers, currentUser, customers, branches, allAssets, allAccounts,
+    allStaff, allDuties, subscriptions, allMachinery, machineServices,
+    attendance, payroll, products, allInventory, allJobs, allTransactions,
+    allCommitments, partners, invoiceSettings, creativeProjects,
+    materials, processes, rentalFleet, rentalReadings, rentalPayments, rentalRepairs,
+    currentCurrency, isDarkMode, reviewLinks, lastSync
   });
+
+  // Load from local storage on boot
+  useEffect(() => {
+    const data = localStorage.getItem('printmaster_enterprise_db');
+    if (data) {
+      try {
+        const p = JSON.parse(data);
+        rehydrateState(p);
+      } catch (e) { console.error("Rehydration failed:", e); }
+    }
+  }, []);
+
+  // Persist to local storage on change
+  useEffect(() => {
+    const fullState = captureAppState();
+    localStorage.setItem('printmaster_enterprise_db', JSON.stringify(fullState));
+  }, [
+    allUsers, currentUser, customers, allJobs, creativeProjects, allTransactions, 
+    allMachinery, materials, processes, rentalFleet, allInventory, allCommitments, 
+    allAssets, branches, allAccounts, allStaff, allDuties, subscriptions, invoiceSettings,
+    currentCurrency, isDarkMode, reviewLinks
+  ]);
+
+  const connectCloud = async (provider: StorageProvider) => {
+    try {
+      if (provider === StorageProvider.GOOGLE_DRIVE) {
+        await driveService.initAuth();
+      } else {
+        await oneDriveService.initAuth();
+      }
+      setIsCloudConnected(provider);
+      alert(`${provider.replace('_', ' ')} connected successfully.`);
+    } catch (e) {
+      alert("Failed to connect cloud provider.");
+      console.error(e);
+    }
+  };
+
+  const syncToCloud = async () => {
+    if (!isCloudConnected) return;
+    try {
+      const data = captureAppState();
+      if (isCloudConnected === StorageProvider.GOOGLE_DRIVE) {
+        await driveService.saveDatabase(data);
+      } else {
+        await oneDriveService.saveDatabase(data);
+      }
+      const now = new Date().toISOString();
+      setLastSync(now);
+      alert("System synchronized to cloud vault.");
+    } catch (e) {
+      alert("Sync failed.");
+      console.error(e);
+    }
+  };
+
+  const restoreFromCloud = async () => {
+    if (!isCloudConnected) return;
+    try {
+      let data: any;
+      if (isCloudConnected === StorageProvider.GOOGLE_DRIVE) {
+        data = await driveService.loadDatabase();
+      } else {
+        data = await oneDriveService.loadDatabase();
+      }
+      if (data) {
+        rehydrateState(data);
+        alert("System rehydrated from cloud master file.");
+      } else {
+        alert("No backup file found in cloud.");
+      }
+    } catch (e) {
+      alert("Restoration failed.");
+      console.error(e);
+    }
+  };
+
+  const exportAppState = () => {
+    const state = captureAppState();
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `PrintMaster_Vault_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const importAppState = (json: string) => {
+    try {
+      const p = JSON.parse(json);
+      rehydrateState(p);
+      alert("Application state restored successfully.");
+    } catch (e) {
+      alert("Invalid backup file. Restoration aborted.");
+    }
+  };
 
   const filterByBranch = <T extends { branchId?: string }>(list: T[]): T[] => {
     if (selectedBranchId === 'ALL') return list;
     return list.filter(item => !item.branchId || item.branchId === selectedBranchId);
   };
 
-  const jobs = filterByBranch(allJobs);
-  const transactions = filterByBranch(allTransactions);
-  const inventory = filterByBranch(allInventory);
-  const staff = filterByBranch(allStaff);
-  const accounts = filterByBranch(allAccounts);
-  const machinery = filterByBranch(allMachinery);
-  const assets = filterByBranch(allAssets);
-  const commitments = filterByBranch(allCommitments);
-  const duties = allDuties.filter(d => {
-      const s = allStaff.find(st => st.id === d.staffId);
-      return selectedBranchId === 'ALL' || s?.branchId === selectedBranchId;
-  });
-
-  useEffect(() => {
-    const localData = localStorage.getItem('printmaster_local_db_v9');
-    if (localData) {
-      try {
-        const parsed = JSON.parse(localData);
-        if (parsed.customers) setCustomers(parsed.customers);
-        if (parsed.branches) setBranches(parsed.branches);
-        if (parsed.allAssets) setAllAssets(parsed.allAssets);
-        if (parsed.allStaff) setAllStaff(parsed.allStaff);
-        if (parsed.allDuties) setAllDuties(parsed.allDuties);
-        if (parsed.allAccounts) setAllAccounts(parsed.allAccounts);
-        if (parsed.allJobs) setAllJobs(parsed.allJobs);
-        if (parsed.allInventory) setAllInventory(parsed.allInventory);
-        if (parsed.allTransactions) setAllTransactions(parsed.allTransactions);
-        if (parsed.allMachinery) setAllMachinery(parsed.allMachinery);
-        if (parsed.allCommitments) setAllCommitments(parsed.allCommitments);
-        if (parsed.reviewLinks) setReviewLinks(parsed.reviewLinks);
-      } catch (e) { console.error("Local load failed", e); }
-    }
-  }, []);
-
-  useEffect(() => {
-    const data = { customers, branches, allAssets, allStaff, allDuties, allAccounts, allJobs, allInventory, allTransactions, allMachinery, machineServices, attendance, payroll, subscriptions, allCommitments, reviewLinks };
-    localStorage.setItem('printmaster_local_db_v9', JSON.stringify(data));
-  }, [customers, branches, allAssets, allStaff, allDuties, allAccounts, allJobs, allInventory, allTransactions, allMachinery, machineServices, attendance, payroll, subscriptions, allCommitments, reviewLinks]);
-
-  const toggleDarkMode = () => setIsDarkMode(prev => !prev);
-  const setCurrency = (code: CurrencyCode) => setCurrentCurrency(code);
-  const setCurrentRole = (role: UserRole) => setCurrentUser({ ...currentUser, role });
-
-  const addTransaction = (t: Omit<Transaction, 'id' | 'timestamp' | 'branchId'>) => {
-    const newTransaction: Transaction = {
-      ...t,
-      id: `TRX-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-      timestamp: new Date().toISOString(),
-      branchId: selectedBranchId === 'ALL' ? 'b1' : selectedBranchId
-    };
-    setAllTransactions(prev => [newTransaction, ...prev]);
-
-    if (t.accountId) {
-      setAllAccounts(prev => prev.map(acc => {
-        if (acc.id === t.accountId) {
-          const multiplier = (t.type === 'SALE' || t.type === 'IMPORT' || t.type === 'TRANSFER') ? 1 : -1;
-          return { ...acc, balance: acc.balance + (t.amount * multiplier) };
-        }
-        return acc;
-      }));
-    }
+  const addUser = (user: Omit<User, 'id'>) => setAllUsers(prev => [...prev, { ...user, id: `U-${Date.now()}` }]);
+  const updateUser = (id: string, updates: Partial<User>) => {
+    setAllUsers(prev => prev.map(u => u.id === id ? { ...u, ...updates } : u));
+    if (currentUser.id === id) setCurrentUser(prev => ({ ...prev, ...updates }));
+  };
+  const deleteUser = (id: string) => {
+    if (id === 'u-admin') return;
+    setAllUsers(prev => prev.filter(u => u.id !== id));
   };
 
-  const deleteTransaction = (id: string) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    setAllTransactions(prev => prev.filter(t => t.id !== id));
-  };
+  const addJob = (j: Omit<Job, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>) => setAllJobs(prev => [{ ...j, id: `J-${Date.now()}`, branchId: selectedBranchId, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, ...prev]);
+  const updateJob = (id: string, updates: Partial<Job>) => setAllJobs(prev => prev.map(j => j.id === id ? { ...j, ...updates, updatedAt: new Date().toISOString() } : j));
+  const deleteJob = (id: string) => setAllJobs(prev => prev.filter(j => j.id !== id));
 
-  const transferFunds = (fromId: string, toId: string, amount: number) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    setAllAccounts(prev => prev.map(acc => {
-      if (acc.id === fromId) return { ...acc, balance: acc.balance - amount };
-      if (acc.id === toId) return { ...acc, balance: acc.balance + amount };
-      return acc;
-    }));
-    addTransaction({
-      amount,
-      currency: currentCurrency,
-      paymentMethod: PaymentMethod.CASH,
-      type: 'TRANSFER',
-      source: OrderSource.WALK_IN,
-      description: `Internal Fund Transfer`,
-    });
-  };
-
+  const addTransaction = (t: Omit<Transaction, 'id' | 'timestamp' | 'branchId'>) => setAllTransactions(prev => [{ ...t, id: `T-${Date.now()}`, timestamp: new Date().toISOString(), branchId: selectedBranchId }, ...prev]);
   const addCustomer = (c: Omit<Customer, 'id'>) => {
-    setCustomers(prev => [...prev, { ...c, id: `C-${Date.now()}` }]);
+    const nc = { ...c, id: `C-${Date.now()}` };
+    setCustomers(prev => [...prev, nc]);
+    return nc;
   };
 
-  const updateCustomer = (id: string, updates: Partial<Customer>) => {
-    setCustomers(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
-  };
+  const addMachinery = (m: Omit<Machinery, 'id' | 'branchId'>) => setAllMachinery(prev => [...prev, { ...m, id: `M-${Date.now()}`, branchId: selectedBranchId }]);
+  const updateMachinery = (id: string, updates: Partial<Machinery>) => setAllMachinery(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
 
-  const deleteCustomer = (id: string) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    setCustomers(prev => prev.filter(c => c.id !== id));
-  };
+  const addCreativeProject = (p: Omit<CreativeProject, 'id'>) => setCreativeProjects(prev => [...prev, { ...p, id: `CP-${Date.now()}` }]);
+  const updateCreativeProject = (id: string, updates: Partial<CreativeProject>) => setCreativeProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+  const deleteCreativeProject = (id: string) => setCreativeProjects(prev => prev.filter(p => p.id !== id));
 
-  const addBranch = (b: Omit<Branch, 'id'>) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    setBranches(prev => [...prev, { ...b, id: `B-${Date.now()}` }]);
-  };
-
-  const updateBranch = (id: string, updates: Partial<Branch>) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    setBranches(prev => prev.map(b => b.id === id ? { ...b, ...updates } : b));
-  };
-
-  const deleteBranch = (id: string) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    setBranches(prev => prev.filter(b => b.id !== id));
-  };
-
-  const addAsset = (a: Omit<CompanyAsset, 'id'>) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    setAllAssets(prev => [...prev, { ...a, id: `ASSET-${Date.now()}` }]);
-  };
-
-  const updateAsset = (id: string, updates: Partial<CompanyAsset>) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    setAllAssets(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
-  };
-
-  const deleteAsset = (id: string) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    setAllAssets(prev => prev.filter(a => a.id !== id));
-  };
-
-  const addStaff = (s: Omit<StaffMember, 'id' | 'onDuty' | 'totalAdvances' | 'branchId'>) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    const newStaff: StaffMember = {
-      ...s,
-      id: `ST-${Date.now()}`,
-      onDuty: false,
-      totalAdvances: 0,
-      branchId: selectedBranchId === 'ALL' ? 'b1' : selectedBranchId
-    };
-    setAllStaff(prev => [...prev, newStaff]);
-  };
-
-  const addDuty = (duty: Omit<StaffDuty, 'id' | 'createdAt'>) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    const newDuty: StaffDuty = {
-      ...duty,
-      id: `DUTY-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-    };
-    setAllDuties(prev => [...prev, newDuty]);
-  };
-
-  const updateDuty = (id: string, updates: Partial<StaffDuty>) => {
-    setAllDuties(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
-  };
-
-  const addSubscription = (sub: Omit<BusinessSubscription, 'id'>) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    const newSub: BusinessSubscription = {
-      ...sub,
-      id: `SUB-${Date.now()}`,
-    };
-    setSubscriptions(prev => [...prev, newSub]);
-  };
-
-  const deleteSubscription = (id: string) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    setSubscriptions(prev => prev.filter(s => s.id !== id));
-  };
-
-  const addMachinery = (m: Omit<Machinery, 'id' | 'branchId'>) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    setAllMachinery(prev => [...prev, { ...m, id: `MACH-${Date.now()}`, branchId: selectedBranchId === 'ALL' ? 'b1' : selectedBranchId }]);
-  };
-
-  const updateMachinery = (id: string, updates: Partial<Machinery>) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    setAllMachinery(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
-  };
-
-  const deleteMachinery = (id: string) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    setAllMachinery(prev => prev.filter(m => m.id !== id));
-    setMachineServices(prev => prev.filter(ms => ms.machineryId !== id));
-  };
-
-  const addMachineryService = (ms: Omit<MachineryService, 'id'>) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    const newService: MachineryService = {
-      ...ms,
-      id: `MSERV-${Date.now()}`,
-    };
-    setMachineServices(prev => [...prev, newService]);
-    const machine = allMachinery.find(m => m.id === ms.machineryId);
+  const updateStaffAdvance = (staffId: string, amount: number) => {
+    setAllStaff(prev => prev.map(s => s.id === staffId ? { ...s, totalAdvances: s.totalAdvances + amount } : s));
     addTransaction({
-      amount: ms.charges,
+      amount: amount,
       currency: currentCurrency,
-      paymentMethod: PaymentMethod.CASH,
-      type: 'MACHINERY_SERVICE',
-      source: OrderSource.WALK_IN,
-      description: `Service for ${machine?.name} by ${ms.technicianName}`,
-      accountId: allAccounts.find(a => a.branchId === machine?.branchId)?.id
-    });
-  };
-
-  const updateStaffAdvance = (id: string, amount: number) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    setAllStaff(prev => prev.map(s => s.id === id ? { ...s, totalAdvances: s.totalAdvances + amount } : s));
-    const sMember = allStaff.find(s => s.id === id);
-    addTransaction({
-      amount,
-      currency: currentCurrency,
-      paymentMethod: PaymentMethod.CASH,
       type: 'STAFF_ADVANCE',
       source: OrderSource.WALK_IN,
-      description: `Advance paid to ${sMember?.name}`,
-      accountId: allAccounts.find(a => a.branchId === sMember?.branchId)?.id
+      paymentMethod: PaymentMethod.CASH,
+      description: `Salary Advance to ${allStaff.find(s => s.id === staffId)?.name || 'Staff'}`
     });
   };
 
-  const clockInOut = (staffId: string) => {
-    setAllStaff(prev => prev.map(s => s.id === staffId ? { ...s, onDuty: !s.onDuty } : s));
-    const now = new Date();
-    const sMember = allStaff.find(s => s.id === staffId);
-    if (!sMember?.onDuty) {
-      addAttendance({
-        staffId,
-        date: now.toISOString().split('T')[0],
-        clockIn: now.toISOString(),
-        extraHours: 0,
-        status: 'PRESENT'
-      });
-    }
+  const addRentalMachine = (m: Omit<RentalMachinery, 'id'>) => setRentalFleet(prev => [...prev, { ...m, id: `RM-${Date.now()}` }]);
+  const updateRentalMachine = (id: string, updates: Partial<RentalMachinery>) => setRentalFleet(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
+  const deleteRentalMachine = (id: string) => setRentalFleet(prev => prev.filter(m => m.id !== id));
+  
+  const addRentalReading = (r: Omit<RentalCounterReading, 'id'>) => {
+    setRentalReadings(prev => [...prev, { ...r, id: `RR-${Date.now()}` }]);
+    updateRentalMachine(r.machineId, { currentCounter: r.reading });
   };
+  const addRentalPayment = (p: Omit<RentalPayment, 'id'>) => setRentalPayments(prev => [...prev, { ...p, id: `RP-${Date.now()}` }]);
+  const addRentalRepair = (r: Omit<RentalRepair, 'id'>) => setRentalRepairs(prev => [...prev, { ...r, id: `RPR-${Date.now()}` }]);
 
-  const addAttendance = (record: Omit<AttendanceRecord, 'id'>) => {
-    setAttendance(prev => [...prev, { ...record, id: `ATT-${Date.now()}` }]);
-  };
+  const importProducts = (data: Product[]) => setProducts(prev => [...prev, ...data.map(d => ({ ...d, id: `PROD-${Math.random()}` }))]);
 
-  const addJob = (j: Omit<Job, 'id' | 'createdAt' | 'updatedAt' | 'branchId'>) => {
-    const newJob: Job = {
-      ...j,
-      id: `J-${(allJobs.length + 1).toString().padStart(3, '0')}`,
-      branchId: selectedBranchId === 'ALL' ? 'b1' : selectedBranchId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setAllJobs(prev => [newJob, ...prev]);
-  };
-
-  const updateJob = (id: string, updates: Partial<Job>) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    setAllJobs(prev => prev.map(j => j.id === id ? { ...j, ...updates, updatedAt: new Date().toISOString() } : j));
-  };
-
-  const deleteJob = (id: string) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    setAllJobs(prev => prev.filter(j => j.id !== id));
-  };
-
-  const updateJobStatus = (id: string, status: JobStatus) => {
-    setAllJobs(prev => prev.map(j => j.id === id ? { ...j, status, updatedAt: new Date().toISOString() } : j));
-  };
-
-  const updateInventory = (itemId: string, delta: number) => {
-    setAllInventory(prev => prev.map(item => 
-      item.id === itemId ? { ...item, quantity: Math.max(0, item.quantity + delta) } : item
-    ));
-  };
-
-  const importCustomers = (data: Array<{ name: string, phone: string }>) => {
-    const news = data.map(d => ({ id: `C-${Math.random()}`, name: d.name, phone: d.phone, email: '' }));
-    setCustomers(prev => [...prev, ...news]);
-  };
-
-  const importLegacyData = (data: Array<{ date: string, amount: number, description: string }>) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    const trxs: Transaction[] = data.map(d => ({
-      id: `LEG-${Math.random()}`,
-      amount: d.amount,
-      currency: currentCurrency,
-      paymentMethod: PaymentMethod.CASH,
-      timestamp: d.date,
-      type: 'IMPORT',
-      branchId: selectedBranchId === 'ALL' ? 'b1' : selectedBranchId,
-      source: OrderSource.WALK_IN,
-      description: d.description
-    }));
-    setAllTransactions(prev => [...trxs, ...prev]);
-  };
-
-  const addCommitment = (c: Omit<BusinessCommitment, 'id'>) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    setAllCommitments(prev => [...prev, { ...c, id: `COM-${Date.now()}` }]);
-  };
-
-  const updateCommitment = (id: string, updates: Partial<BusinessCommitment>) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    setAllCommitments(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
-  };
-
-  const deleteCommitment = (id: string) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    setAllCommitments(prev => prev.filter(c => c.id !== id));
-  };
-
-  const payCommitment = (id: string, accountId: string) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    const commitment = allCommitments.find(c => c.id === id);
-    if (!commitment) return;
-
-    addTransaction({
-      amount: commitment.amount,
-      currency: currentCurrency,
-      paymentMethod: PaymentMethod.CASH,
-      type: 'OPERATIONAL_BILL',
-      source: OrderSource.WALK_IN,
-      description: `Payment for ${commitment.name} (${commitment.category})`,
-      accountId: accountId
-    });
-
-    setAllCommitments(prev => prev.map(c => c.id === id ? { ...c, status: 'PAID', paidDate: new Date().toISOString().split('T')[0] } : c));
-  };
-
-  const connectCloud = async (provider: StorageProvider) => {
-    if (currentUser.role !== UserRole.ADMIN) return;
-    if (provider === StorageProvider.GOOGLE_DRIVE) await driveService.initAuth();
-    else if (provider === StorageProvider.ONE_DRIVE) await oneDriveService.initAuth();
-    setIsCloudConnected(provider);
-  };
-
-  const syncToCloud = async () => {
-    if (!isCloudConnected || currentUser.role !== UserRole.ADMIN) return;
-    const data = { customers, branches, allAssets, allStaff, allAttendance: attendance, allPayroll: payroll, allAccounts, allJobs, allInventory, allTransactions, allDuties, subscriptions, allMachinery, machineServices, allCommitments, reviewLinks };
-    if (isCloudConnected === StorageProvider.GOOGLE_DRIVE) await driveService.saveDatabase(data);
-    else await oneDriveService.saveDatabase(data);
-    setLastSync(new Date().toISOString());
-  };
-
-  const restoreFromCloud = async () => {
-    if (!isCloudConnected || currentUser.role !== UserRole.ADMIN) return;
-    const res = isCloudConnected === StorageProvider.GOOGLE_DRIVE ? await driveService.loadDatabase() : await oneDriveService.loadDatabase();
-    if (res) {
-      if (res.customers) setCustomers(res.customers);
-      if (res.branches) setBranches(res.branches);
-      if (res.allAssets) setAllAssets(res.allAssets);
-      if (res.allStaff) setAllStaff(res.allStaff);
-      if (res.allAttendance) setAttendance(res.allAttendance);
-      if (res.allAccounts) setAllAccounts(res.allAccounts);
-      if (res.allJobs) setAllJobs(res.allJobs);
-      if (res.allInventory) setAllInventory(res.allInventory);
-      if (res.allTransactions) setAllTransactions(res.allTransactions);
-      if (res.allDuties) setAllDuties(res.allDuties);
-      if (res.allMachinery) setAllMachinery(res.allMachinery);
-      if (res.allCommitments) setAllCommitments(res.allCommitments);
-      if (res.reviewLinks) setReviewLinks(res.reviewLinks);
-    }
-  };
-
-  const exportAppState = () => {
-    const data = { customers, branches, allAssets, allStaff, allDuties, allAccounts, allJobs, allInventory, allTransactions, allMachinery, machineServices, attendance, payroll, subscriptions, allCommitments, reviewLinks };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `printmaster_export_${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const importAppState = (json: string) => {
-    try {
-      const res = JSON.parse(json);
-      if (res.customers) setCustomers(res.customers);
-      if (res.branches) setBranches(res.branches);
-      if (res.allAssets) setAllAssets(res.allAssets);
-      if (res.allStaff) setAllStaff(res.allStaff);
-      if (res.allJobs) setAllJobs(res.allJobs);
-      if (res.allInventory) setAllInventory(res.allInventory);
-      if (res.allTransactions) setAllTransactions(res.allTransactions);
-      if (res.allDuties) setAllDuties(res.allDuties);
-      if (res.allMachinery) setAllMachinery(res.allMachinery);
-      if (res.allCommitments) setAllCommitments(res.allCommitments);
-      if (res.reviewLinks) setReviewLinks(res.reviewLinks);
-      alert("Application data imported successfully.");
-    } catch (e) {
-      alert("Invalid backup file.");
-    }
+  const factoryReset = () => {
+    localStorage.removeItem('printmaster_enterprise_db');
+    window.location.reload();
   };
 
   return (
     <AppContext.Provider value={{ 
-      currentUser, setCurrentRole, selectedBranchId, setSelectedBranchId,
-      customers, branches, allAssets, assets, suppliers, partners, allAccounts, accounts, allStaff, staff, allDuties, duties, subscriptions, allMachinery, machinery, machineServices, attendance, payroll, products, allJobs, jobs, allInventory, inventory, allTransactions, transactions, allCommitments, commitments, isDarkMode, currentCurrency,
-      isCloudConnected, lastSync, reviewLinks, setReviewLinks,
-      toggleDarkMode, setCurrency, addTransaction, deleteTransaction, transferFunds, addJob, updateJob, deleteJob, updateJobStatus, updateInventory, 
-      addCustomer, updateCustomer, deleteCustomer, addBranch, updateBranch, deleteBranch, addAsset, updateAsset, deleteAsset, importCustomers, importLegacyData, addStaff, addDuty, updateDuty, addSubscription, deleteSubscription, 
-      addMachinery, updateMachinery, deleteMachinery, addMachineryService, updateStaffAdvance, clockInOut, addAttendance,
-      addCommitment, updateCommitment, deleteCommitment, payCommitment,
-      connectCloud, syncToCloud, restoreFromCloud, exportAppState, importAppState
+      currentUser, allUsers, setCurrentUser, addUser, updateUser, deleteUser, selectedBranchId, setSelectedBranchId,
+      customers, branches, allAssets, assets: filterByBranch(allAssets), allAccounts, accounts: filterByBranch(allAccounts),
+      allStaff, staff: filterByBranch(allStaff), allDuties, duties: filterByBranch(allDuties),
+      subscriptions, allMachinery, machinery: filterByBranch(allMachinery), machineServices, attendance, payroll, 
+      products, materials, processes, creativeProjects, addCreativeProject, updateCreativeProject, deleteCreativeProject,
+      rentalFleet, rentalReadings, rentalPayments, rentalRepairs, addRentalMachine, updateRentalMachine, deleteRentalMachine,
+      addRentalReading, addRentalPayment, addRentalRepair, allJobs, jobs: filterByBranch(allJobs),
+      allTransactions, transactions: filterByBranch(allTransactions), allCommitments, commitments: filterByBranch(allCommitments),
+      allInventory, inventory: filterByBranch(allInventory),
+      isDarkMode, isStealthMode, setIsStealthMode, currentCurrency, isCloudConnected, isAutoSyncEnabled, setIsAutoSyncEnabled, 
+      lastSync, reviewLinks, setReviewLinks, toggleDarkMode: () => setIsDarkMode(!isDarkMode), setCurrency: setCurrentCurrency,
+      addTransaction, deleteTransaction: (id) => setAllTransactions(prev => prev.filter(t => t.id !== id)), transferFunds: () => {}, 
+      addJob, updateJob, deleteJob, updateJobStatus: (id, status) => updateJob(id, { status }), addCustomer,
+      updateCustomer: (id, u) => setCustomers(prev => prev.map(c => c.id === id ? { ...c, ...u } : c)), 
+      deleteCustomer: (id) => setCustomers(prev => prev.filter(c => c.id !== id)), addBranch: (b) => setBranches(prev => [...prev, { ...b, id: `B-${Date.now()}` }]),
+      updateBranch: (id, u) => setBranches(prev => prev.map(b => b.id === id ? { ...b, ...u } : b)), deleteBranch: (id) => setBranches(prev => prev.filter(b => b.id !== id)),
+      addAsset: (a) => setAllAssets(prev => [...prev, { ...a, id: `A-${Date.now()}` }]), updateAsset: (id, u) => setAllAssets(prev => prev.map(a => a.id === id ? { ...a, ...u } : a)),
+      deleteAsset: (id) => setAllAssets(prev => prev.filter(a => a.id !== id)), addStaff: (s) => setAllStaff(prev => [...prev, { ...s, id: `S-${Date.now()}`, branchId: selectedBranchId, totalAdvances: 0, onDuty: false }]),
+      updateStaffAdvance,
+      addDuty: (d) => setAllDuties(prev => [...prev, { ...d, id: `D-${Date.now()}`, createdAt: new Date().toISOString(), branchId: selectedBranchId }]), updateDuty: (id, u) => setAllDuties(prev => prev.map(d => d.id === id ? { ...d, ...u } : d)),
+      addSubscription: (s) => setSubscriptions(prev => [...prev, { ...s, id: `SUB-${Date.now()}` }]), deleteSubscription: (id) => setSubscriptions(prev => prev.filter(s => s.id !== id)),
+      addMachinery, updateMachinery, deleteMachinery: (id) => setAllMachinery(prev => prev.filter(m => m.id !== id)), addMachineryService: (ms) => setMachineServices(prev => [...prev, { ...ms, id: `MS-${Date.now()}` }]),
+      clockInOut: (sid) => setAllStaff(prev => prev.map(s => s.id === sid ? { ...s, onDuty: !s.onDuty } : s)), addAttendance: (a) => setAttendance(prev => [...prev, { ...a, id: `AT-${Date.now()}` }]),
+      addCommitment: (c) => setAllCommitments(prev => [...prev, { ...c, id: `COM-${Date.now()}` }]), updateCommitment: (id, u) => setAllCommitments(prev => prev.map(c => c.id === id ? { ...c, ...u } : c)),
+      deleteCommitment: (id) => setAllCommitments(prev => prev.filter(c => c.id !== id)), payCommitment: () => {}, invoiceSettings, updateInvoiceSettings: (u) => setInvoiceSettings(prev => ({ ...prev, ...u })),
+      connectCloud, syncToCloud, restoreFromCloud, exportAppState, importAppState, factoryReset,
+      suppliers: MOCK_SUPPLIERS, partners, addPartner: (p) => setPartners(prev => [...prev, { ...p, id: `P-${Date.now()}`, totalDraws: 0 }]),
+      updatePartner: (id, u) => setPartners(prev => prev.map(p => p.id === id ? { ...p, ...u } : p)), deletePartner: (id) => setPartners(prev => prev.filter(p => p.id !== id)),
+      updateInventory: (itemId, delta) => setAllInventory(prev => prev.map(item => item.id === itemId ? { ...item, quantity: item.quantity + delta } : item)), 
+      addMaterial: (m) => setMaterials(prev => [...prev, { ...m, id: `MAT-${Date.now()}` }]),
+      updateMaterial: (id, u) => setMaterials(prev => prev.map(m => m.id === id ? { ...m, ...u } : m)), deleteMaterial: (id) => setMaterials(prev => prev.filter(m => m.id !== id)),
+      addProcess: (p) => setProcesses(prev => [...prev, { ...p, id: `PR-${Date.now()}` }]), updateProcess: (id, u) => setProcesses(prev => prev.map(p => p.id === id ? { ...p, ...u } : p)),
+      deleteProcess: (id) => setProcesses(prev => prev.filter(p => p.id !== id)), addProduct: (p) => { const np = { ...p, id: `PROD-${Date.now()}` }; setProducts(prev => [...prev, np]); return np; },
+      updateProduct: (id, u) => setProducts(prev => prev.map(p => p.id === id ? { ...p, ...u } : p)), deleteProduct: (id) => setProducts(prev => prev.filter(p => p.id !== id)),
+      importProducts,
+      importCustomers: (data) => setCustomers(prev => [...prev, ...data.map(d => ({ ...d, id: `C-${Math.random()}`, email: '' }))])
     }}>
       {children}
     </AppContext.Provider>
@@ -543,6 +438,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
 export const useApp = () => {
   const context = useContext(AppContext);
-  if (!context) throw new Error('useApp context error');
+  if (!context) throw new Error('useApp error');
   return context;
 };

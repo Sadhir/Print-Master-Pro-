@@ -1,5 +1,7 @@
 {
   "name": "PrintMaster Pro",
-  "description": "A comprehensive printing and graphic design management suite featuring POS, automated invoicing, job tracking, and AI-powered customer communication.",
-  "requestFramePermissions": []
+  "description": "Enterprise-grade printing & design suite with AI production workflows, multi-branch accounting, and automated customer engagement.",
+  "requestFramePermissions": [
+    "camera"
+  ]
 }

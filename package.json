@@ -1,26 +1,22 @@
+
 {
   "name": "printmaster-pro",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "version": "3.4.1",
+  "main": "electron-main.js",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
-    "@google/genai": "^1.36.0",
-    "lucide-react": "^0.562.0",
-    "recharts": "^3.6.0",
-    "react-router-dom": "^7.12.0",
-    "xlsx": "0.18.5"
+    "start": "electron .",
+    "build:exe": "electron-builder --win"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.printmaster.enterprise",
+    "productName": "PrintMaster Pro",
+    "win": {
+      "target": "nsis",
+      "icon": "icon.png"
+    }
   }
 }

@@ -1,4 +1,3 @@
-
 export enum UserRole {
   ADMIN = 'ADMIN',
   STAFF = 'STAFF',
@@ -13,6 +12,15 @@ export enum JobStatus {
   OUTSOURCED = 'OUTSOURCED',
   COMPLETED = 'COMPLETED',
   DELIVERED = 'DELIVERED'
+}
+
+export enum DesignStatus {
+  BRIEFING = 'BRIEFING',
+  DRAFTING = 'DRAFTING',
+  CLIENT_REVIEW = 'CLIENT_REVIEW',
+  REVISIONS = 'REVISIONS',
+  FINAL_APPROVED = 'FINAL_APPROVED',
+  SENT_TO_PRINT = 'SENT_TO_PRINT'
 }
 
 export enum OrderSource {
@@ -46,6 +54,65 @@ export enum CurrencyCode {
   AUD = 'A$'
 }
 
+export enum MaterialUnit {
+  GRAMS = 'GRAMS',
+  ML = 'ML',
+  SHEETS = 'SHEETS',
+  METERS = 'METERS',
+  PIECES = 'PIECES',
+  SQFT = 'SQFT',
+  CLICK = 'CLICK'
+}
+
+export interface Material {
+  id: string;
+  name: string;
+  unit: MaterialUnit;
+  costPerUnit: number;
+  currentStock: number;
+  minThreshold: number;
+  defaultWastagePercent: number;
+}
+
+export interface ProductionProcess {
+  id: string;
+  name: string;
+  unit: 'HOUR' | 'JOB' | 'METER' | 'CLICK' | 'PIECE';
+  ratePerUnit: number;
+}
+
+export interface CreativeProject {
+  id: string;
+  customerId: string;
+  title: string;
+  description: string;
+  status: DesignStatus;
+  deadline: string;
+  assignedDesignerId?: string;
+  briefDetails: string;
+  proofUrl?: string;
+  revisionsCount: number;
+  isSMM: boolean;
+  platform?: 'FACEBOOK' | 'INSTAGRAM' | 'TIKTOK' | 'MULTI';
+}
+
+export interface CostBreakdown {
+  materials: Array<{
+    materialId: string;
+    consumedQty: number;
+    wastageQty: number;
+    totalCost: number;
+  }>;
+  processes: Array<{
+    processId: string;
+    units: number;
+    totalCost: number;
+  }>;
+  laborCost: number;
+  overheadMarkup: number;
+  totalActualCost: number;
+}
+
 export enum CommitmentCategory {
   SHOP_RENTAL = 'SHOP_RENTAL',
   ELECTRICITY = 'ELECTRICITY',
@@ -61,6 +128,31 @@ export enum CommitmentCategory {
 export enum StorageProvider {
   GOOGLE_DRIVE = 'GOOGLE_DRIVE',
   ONE_DRIVE = 'ONE_DRIVE'
+}
+
+export type InvoiceTemplate = 'MODERN' | 'CLASSIC' | 'THERMAL' | 'MINIMAL';
+
+export interface InvoiceSettings {
+  template: InvoiceTemplate;
+  primaryColor: string;
+  businessLogoUrl: string;
+  businessName: string;
+  businessTagline: string;
+  businessAddress: string;
+  businessPhone: string;
+  businessEmail: string;
+  footerNotes: string;
+  showPaymentDetails: boolean;
+  bankDetails: string;
+  taxNumber?: string;
+}
+
+export interface User {
+  id: string;
+  name: string;
+  role: UserRole;
+  pin?: string;
+  avatarColor?: string;
 }
 
 export interface BusinessCommitment {
@@ -106,6 +198,7 @@ export interface CompanyAsset {
   branchId: string;
 }
 
+// Added branchId to StaffDuty to allow filtering by branch
 export interface StaffDuty {
   id: string;
   staffId: string;
@@ -115,6 +208,7 @@ export interface StaffDuty {
   cancellationNote?: string;
   assignedBy: string;
   createdAt: string;
+  branchId: string;
 }
 
 export interface BusinessSubscription {
@@ -133,7 +227,9 @@ export interface Machinery {
   model: string;
   serialNumber: string;
   purchaseDate: string;
-  purchasePrice: number;
+  totalCost: number;
+  amountPaid: number;
+  purchasePrice: number; 
   salvageValue: number;
   estimatedLifeYears: number;
   monthlyOpCost: number;
@@ -141,6 +237,13 @@ export interface Machinery {
   status: 'OPERATIONAL' | 'UNDER_MAINTENANCE' | 'OUT_OF_ORDER';
   location: string;
   branchId: string;
+  initialCounter: number;
+  currentCounter: number;
+  type: 'OWNED' | 'LEASED';
+  consumableStocks: Array<{
+    name: string;
+    level: number;
+  }>;
 }
 
 export interface MachineryService {
@@ -153,45 +256,22 @@ export interface MachineryService {
   description: string;
   replacedParts?: string;
   nextServiceDate?: string;
+  type: 'REPAIR' | 'ROUTINE' | 'EMERGENCY';
 }
 
-export interface SupplierService {
-  id: string;
-  name: string;
-  price: number;
-}
-
-export interface Supplier {
-  id: string;
-  name: string;
-  contact: string;
-  address?: string;
-  services: SupplierService[];
-  category: string;
-}
-
-export interface Partner {
-  id: string;
-  name: string;
-  sharePercentage: number;
-  totalDraws: number;
-}
-
-export interface FinancialAccount {
-  id: string;
-  name: string;
-  type: 'CASH' | 'BANK' | 'SAVINGS';
-  balance: number;
-  branchId?: string;
+export interface ProductComponent {
+  inventoryItemId: string;
+  quantity: number;
 }
 
 export interface Product {
   id: string;
   name: string;
-  category: 'PRINTING' | 'DESIGN' | 'FINISHING' | 'CONSUMABLE';
+  category: ProductCategory;
   price: number;
   stock: number;
   unit: string;
+  components?: Array<ProductComponent>;
 }
 
 export interface StaffMember {
@@ -216,19 +296,6 @@ export interface AttendanceRecord {
   clockOut?: string;
   extraHours: number;
   status: 'PRESENT' | 'ABSENT' | 'LEAVE';
-}
-
-export interface PayrollRecord {
-  id: string;
-  staffId: string;
-  monthYear: string;
-  basePaid: number;
-  allowancePaid: number;
-  commissionPaid: number;
-  otPaid: number;
-  advanceDeducted: number;
-  totalNet: number;
-  paidAt: string;
 }
 
 export interface Job {
@@ -257,6 +324,10 @@ export interface Job {
   exchangeRate?: number;
   expiryDate?: string; 
   outsourcedCost?: number;
+  designCost?: number;
+  printingCost?: number;
+  finishingCost?: number;
+  deliveryCost?: number;
   outsourcedVendorId?: string;
   isOutsourced: boolean;
   createWhatsAppGroup: boolean;
@@ -264,22 +335,17 @@ export interface Job {
   jobTakenDate: string;
   deliveryDate: string;
   reminderSent?: boolean;
+  lastReminderDate?: string;
+  lastReminderType?: string;
   createdAt: string;
   updatedAt: string;
+  costBreakdown?: CostBreakdown;
   items: Array<{
     description: string;
     quantity: number;
     unitPrice: number;
   }>;
-}
-
-export interface InventoryItem {
-  id: string;
-  name: string;
-  branchId: string;
-  quantity: number;
-  minThreshold: number;
-  unit: string;
+  machineId?: string;
 }
 
 export interface Transaction {
@@ -300,3 +366,135 @@ export interface Transaction {
   type: 'SALE' | 'EXPENSE' | 'IMPORT' | 'TRANSFER' | 'PARTNER_DRAW' | 'STAFF_PAYROLL' | 'STAFF_ADVANCE' | 'MACHINERY_SERVICE' | 'OPERATIONAL_BILL';
   description: string;
 }
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  quantity: number;
+  minThreshold: number;
+  unit: string;
+  branchId: string;
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  category: string;
+  contact: string;
+  address: string;
+  services: Array<{ id: string; name: string; price: number }>;
+}
+
+export interface Partner {
+  id: string;
+  name: string;
+  sharePercentage: number;
+  totalDraws: number;
+}
+
+export interface FinancialAccount {
+  id: string;
+  name: string;
+  type: 'CASH' | 'BANK' | 'SAVINGS';
+  balance: number;
+  branchId: string;
+}
+
+export interface PayrollRecord {
+  id: string;
+  staffId: string;
+  monthYear: string;
+  basePaid: number;
+  allowancePaid: number;
+  commissionPaid: number;
+  otPaid: number;
+  advanceDeducted: number;
+  totalNet: number;
+  paidAt: string;
+}
+
+export interface RentalCounterReading {
+  id: string;
+  machineId: string;
+  date: string;
+  reading: number;
+  previousReading: number;
+  clicks: number;
+  cost: number;
+}
+
+export interface RentalMachinery {
+  id: string;
+  name: string;
+  model: string;
+  serialNumber: string;
+  provider: string;
+  depositAmount: number;
+  totalContractValue: number;
+  amountPaid: number;
+  monthlyFixedRent: number;
+  perClickRate: number;
+  initialCounter: number;
+  currentCounter: number;
+  startDate: string;
+  nextPaymentDate: string;
+  status: 'ACTIVE' | 'RETURNED' | 'MAINTENANCE';
+  tonerStock: number;
+  drumLifePercent: number;
+}
+
+export interface RentalRepair {
+  id: string;
+  machineId: string;
+  repairDate: string;
+  description: string;
+  cost: number;
+  technician: string;
+}
+
+// Added RentalPayment interface for lease settlements
+export interface RentalPayment {
+  id: string;
+  machineId: string;
+  amount: number;
+  paymentDate: string;
+  type: 'RENT' | 'DEPOSIT' | 'OTHER';
+  paymentMethod: PaymentMethod;
+  notes?: string;
+}
+
+export type ProductCategory = 
+  | 'PRINT_BW' 
+  | 'PRINT_COLOR_INKJET' 
+  | 'PRINT_COLOR_LASER' 
+  | 'PHOTO_PRINT' 
+  | 'BOARD_PRINT' 
+  | 'LAMINATION' 
+  | 'BIND_SPIRAL' 
+  | 'BIND_COMB' 
+  | 'BIND_OTHER' 
+  | 'ID_PRODUCTS' 
+  | 'TYPING' 
+  | 'DOC_SERVICE' 
+  | 'DESIGN_BASIC' 
+  | 'DESIGN_MARKETING' 
+  | 'LEAFLET_PRINT' 
+  | 'LARGE_FORMAT' 
+  | 'LABEL_PRINT' 
+  | 'COPY_SCAN' 
+  | 'DIGITAL_SERVICE' 
+  | 'FINISHING' 
+  | 'STICKER_WORK' 
+  | 'GOV_SERVICE' 
+  | 'EXTRAS' 
+  | 'INTERNAL'
+  | 'CONSUMABLE' 
+  | 'OTHER'
+  | 'PREMIUM_FINISH'
+  | 'DIGITAL_INVITE'
+  | 'GIFT_ITEM'
+  | 'BUNDLE_DEALS'
+  | 'DESIGN_CONSULT'
+  | 'WEDDING_INVITATION'
+  | 'ENVELOPE'
+  | 'SMM_RETAINER';
