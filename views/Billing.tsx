@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
@@ -114,7 +113,7 @@ export const Billing = () => {
             <div className="p-10 bg-blue-50 dark:bg-blue-900/10 rounded-3xl border border-blue-100 dark:border-blue-900/30 flex items-center gap-6">
                <Info className="text-blue-600 shrink-0" size={32} />
                <p className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase leading-relaxed tracking-wider">
-                  You are viewing the custom <span className="underline">{invoiceSettings.template}</span> template. You can change this style in System Authority > BRANDING settings.
+                  You are viewing the custom <span className="underline">{invoiceSettings.template}</span> template. You can change this style in System Authority &gt; BRANDING settings.
                </p>
             </div>
          </div>
