@@ -1,8 +1,11 @@
 {
   "name": "printmaster-pro",
-  "version": "3.4.1",
+  "version": "3.4.2",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -23,5 +26,8 @@
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "^5.7.2",
     "vite": "^6.0.5"
+  },
+  "overrides": {
+    "node-domexception": "1.0.0"
   }
 }
