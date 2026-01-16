@@ -8,4 +8,7 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
   },
+  define: {
+    'process.env.API_KEY': JSON.stringify(process.env.API_KEY)
+  }
 });

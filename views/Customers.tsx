@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
@@ -118,12 +117,13 @@ export const Customers = () => {
   };
 
   const handleMobileImport = async () => {
+    const nav = navigator as any;
     // Check if Contact Picker API is available
-    if ('contacts' in navigator && 'select' in (navigator as any).contacts) {
+    if ('contacts' in nav && 'select' in nav.contacts) {
       try {
         const props = ['name', 'tel'];
         const opts = { multiple: true };
-        const contacts = await (navigator as any).contacts.select(props, opts);
+        const contacts = await nav.contacts.select(props, opts);
         
         const results = contacts.map((c: any) => ({
           name: c.name[0],

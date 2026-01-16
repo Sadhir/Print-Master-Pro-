@@ -2,6 +2,8 @@
  * Service to manage Google Drive as a persistence layer for the application.
  */
 
+declare var google: any;
+
 const CLIENT_ID = '93721344400-h5tsh8pjrrs9u9n3i6r0j7r0j7r0j7r0.apps.googleusercontent.com'; // Placeholder, user should replace with their own
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 const DB_FILENAME = 'printmaster_enterprise_vault.json';
@@ -13,7 +15,6 @@ export class GoogleDriveService {
   async initAuth(): Promise<string> {
     return new Promise((resolve, reject) => {
       try {
-        // @ts-ignore
         const client = google.accounts.oauth2.initTokenClient({
           client_id: CLIENT_ID,
           scope: SCOPES,
